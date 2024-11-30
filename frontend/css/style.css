@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+input[type="range"]::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--before-width, 0%);
+  background: #ff0000;
+  content: "";
+  z-index: -1;
+}
+
+input[type="range"]::after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: calc(var(--before-current-progress, 0%));
+  background: #fff;
+  content: "";
+  z-index: 0;
+}

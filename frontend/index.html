@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+    <div class="flex flex-col items-center justify-center w-full bg-blue-600 min-h-screen p-4">
+        <div
+            class="flex flex-col items-center justify-center aspect-video relative w-3/4 border border-white rounded-md">
+            <video id="video" class="object-cover w-full h-full absolute top-0 left-0 z-0 rounded-md">
+            </video>
+            <div class="flex flex-col items-center justify-center flex-1 w-full h-full z-10">
+                <div class="flex-1 w-full flex items-center justify-center">
+                    <button id="video-play" class="bg-white w-1/12 p-2 rounded-2xl transition-all">
+                        <img src="icon/circle-play-regular.svg" class="w-full h-full" alt="play">
+                    </button>
+                    <button id="video-re-play" class="bg-white w-1/12 p-2 rounded-2xl transition-all">
+                        <img src="icon/arrow-rotate-left-solid.svg" class="w-full h-full" alt="play">
+                    </button>
+                </div>
+                <div id="controls" class="w-full p-2 flex flex-row items-center justify-center space-x-2">
+                    <button id="video-stop" class="bg-white w-6 h-6 p-1 rounded transition-all">
+                        <img src="icon/circle-stop-regular.svg" class="w-full h-full" alt="play">
+                    </button>
+                    <div class="w-full h-2 bg-[#0000007c] rounded-full flex flex-row items-center relative"
+                        id="video-progress-bar">
+                        <div class="h-full w-0 bg-white rounded-l-full" id="video-progress-fill"></div>
+                        <div class="h-full w-0 bg-[#ffffff90] rounded-full absolute left-0 top-0"></div>
+                        <div class="w-4 h-4 rounded-full bg-white absolute top-[-4px] left-0 z-10" draggable="true"
+                            id="video-progress-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="js/index.js" type="module"></script>
+
+</html>
