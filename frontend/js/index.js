@@ -15,44 +15,132 @@ controlersDiv.style.display = 'none'
 rePlayButton.style.display = 'none'
 
 // Load Video into the video element and play it using blob URL 
-const loadVideo = async () => {
-    // read video file from videos folder and make it a blob and render that into video when blob is
-    const response = await fetch('http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4')
+const videoURL = "http://localhost:8000/";
+let start = 0;
+const chunkSize = 5 * 1024 * 1024; // 5MB
 
-    // Get the total length of the video file
-    const contentLength = response.headers.get('Content-Length')
-    const totalBytes = parseInt(contentLength, 10)
-    let loadedBytes = 0
+const mediaSource = new MediaSource();
+video.src = URL.createObjectURL(mediaSource);
 
-    // Read the video file in chunks and update the progress bar
-    const reader = response.body.getReader()
-    const chunks = []
+const haveMoreMediaSegments = () => {
+    return start < 435 * 1024 * 1024; // 100MB
+}
 
-    // Read the video file in chunks and update the progress bar
-    while (true) {
-        // Read the next chunk
-        const { done, value } = await reader.read()
+const getNextMediaSegment = async () => {
+    const response = await fetch(videoURL, {
+        headers: {
+            Range: `bytes=${start}-${start + chunkSize - 1}`,
+        },
+    });
 
-        // If there are no more chunks, break the loop
-        if (done) break
-
-        // Update the progress bar
-        chunks.push(value)
-        loadedBytes += value.length
-
-        // Calculate the percentage of the video that has been loaded
-        const percentLoaded = (loadedBytes / totalBytes) * 100
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    // Create a blob from the chunks and render it into the video element
-    const blob = new Blob(chunks)
-    video.src = URL.createObjectURL(blob)
+    start += chunkSize;
+    const buffer = await response.arrayBuffer();
+    return buffer;
 }
-loadVideo()
+
+const appendNextMediaSegment = async (mediaSource) => {
+    if (
+        mediaSource.readyState === "closed" ||
+        mediaSource.sourceBuffers[0].updating
+    )
+        return;
+
+    // If we have run out of stream data, then signal end of stream.
+    if (!haveMoreMediaSegments()) {
+        mediaSource.endOfStream();
+        video.play()
+        return;
+    }
+
+    try {
+        const mediaSegment = await getNextMediaSegment();
+
+        // NOTE: If mediaSource.readyState == "ended", this appendBuffer() call will
+        // cause mediaSource.readyState to transition to "open". The web application
+        // should be prepared to handle multiple "sourceopen" events.
+        mediaSource.sourceBuffers[0].appendBuffer(mediaSegment);
+    }
+    catch (error) {
+        // Handle errors that might occur during media segment fetching.
+        console.error("Error fetching media segment:", error);
+        mediaSource.endOfStream("network");
+    }
+}
+
+const getInitializationSegment = async () => {
+    const response = await fetch(videoURL,{
+        headers: {
+            Range: `bytes=0-${chunkSize - 1}`,
+        },
+    });
+
+    start = chunkSize;
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return buffer;
+}
+
+const onSeeking = async (mediaSource) => {
+    if (mediaSource.readyState === "open") {
+        // Abort current segment append.
+        mediaSource.sourceBuffers[0].abort();
+    }
+    
+    // Append a media segment from the new playback position.
+    await appendNextMediaSegment(mediaSource);
+}
+
+mediaSource.addEventListener('sourceopen', async (e) => {
+    const mediaSource = e.target;
+
+    if (mediaSource.sourceBuffers.length > 0) return;
+
+    const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+
+    video.addEventListener("seeking", (e) => onSeeking(mediaSource));
+    video.addEventListener("progress", async () =>
+        await appendNextMediaSegment(mediaSource),
+    );
+
+    try {
+        const initSegment = await getInitializationSegment();
+
+        if (initSegment == null) {
+            // Error fetching the initialization segment. Signal end of stream with an error.
+            mediaSource.endOfStream("network");
+            return;
+        }
+
+        // Append the initialization segment.
+        sourceBuffer.addEventListener("updateend", async function firstAppendHandler() {
+            sourceBuffer.removeEventListener("updateend", firstAppendHandler);
+
+            // Append some initial media data.
+            await appendNextMediaSegment(mediaSource);
+        });
+
+        sourceBuffer.appendBuffer(initSegment);
+    } catch (error) {
+        // Handle errors that might occur during initialization segment fetching.
+        console.error("Error fetching initialization segment:", error);
+        mediaSource.endOfStream("network");
+    }
+})
+
 
 // Play video when play button is clicked
 play.addEventListener('click', () => {
-    video.play()
+    if (mediaSource.readyState === 'open') {
+        video.play()
+    }
     controlersDiv.style.display = 'flex'
 })
 
